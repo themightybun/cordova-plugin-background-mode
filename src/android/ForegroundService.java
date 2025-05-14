@@ -38,6 +38,7 @@ import android.app.NotificationChannel;
 
 import org.json.JSONObject;
 
+import static android.content.pm.ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK;
 import static android.os.PowerManager.PARTIAL_WAKE_LOCK;
 
 /**
@@ -127,9 +128,14 @@ public class ForegroundService extends Service {
     {
         JSONObject settings = BackgroundMode.getSettings();
         boolean isSilent    = settings.optBoolean("silent", false);
-
+        //UPDATE for Android 13
         if (!isSilent) {
-            startForeground(NOTIFICATION_ID, makeNotification());
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
+                startForeground(NOTIFICATION_ID, makeNotification());
+            } else {
+                startForeground(NOTIFICATION_ID, makeNotification(),
+                        FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK);
+            }
         }
 
         PowerManager pm = (PowerManager)getSystemService(POWER_SERVICE);
@@ -218,16 +224,12 @@ public class ForegroundService extends Service {
 
         setColor(notification, settings);
 
+        // UPDATED with flag immutable
         if (intent != null && settings.optBoolean("resume")) {
-            int flags = PendingIntent.FLAG_UPDATE_CURRENT;
-
-            if (android.os.Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                flags = flags | PendingIntent.FLAG_MUTABLE;
-            }
-
             intent.addFlags(Intent.FLAG_ACTIVITY_CLEAR_TOP | Intent.FLAG_ACTIVITY_SINGLE_TOP);
             PendingIntent contentIntent = PendingIntent.getActivity(
-                    context, NOTIFICATION_ID, intent, flags);
+                    context, NOTIFICATION_ID, intent,
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
 
             notification.setContentIntent(contentIntent);
